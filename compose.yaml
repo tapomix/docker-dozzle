@@ -1,0 +1,55 @@
+services:
+  dozzle:
+    image: amir20/dozzle:${SERVICE_VERSION}
+    container_name: ${CONTAINER_NAME}
+    restart: unless-stopped
+    user: ${USER_ID}:${GROUP_ID}
+    security_opt:
+      - no-new-privileges=true
+    read_only: true
+    cap_drop:
+      - ALL
+
+    environment:
+      DOZZLE_ENABLE_ACTIONS: false
+      DOZZLE_ENABLE_SHELL: false
+      DOZZLE_NO_ANALYTICS: true
+      TZ: ${TZ}
+
+    networks:
+      - socket-proxy-net
+      - traefik-net
+
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+    # limit resources
+    cpus: 0.25
+    mem_limit: 64m
+    pids_limit: 25
+
+    # logging
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: 3
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${TRAEFIK_NET}" # declare or force network for traefik docker provider
+      - "traefik.http.routers.${CONTAINER_NAME}-https.rule=Host(`${TRAEFIK_HOST}`)"
+      - "traefik.http.routers.${CONTAINER_NAME}-https.entrypoints=websecure"
+      - "traefik.http.services.${CONTAINER_NAME}.loadbalancer.server.port=${TRAEFIK_PORT}"
+
+networks:
+  socket-proxy-net:
+    external: true
+    name: ${SOCKET_PROXY_NET}
+  traefik-net: # public traefik network
+    external: true
+    name: ${TRAEFIK_NET}
